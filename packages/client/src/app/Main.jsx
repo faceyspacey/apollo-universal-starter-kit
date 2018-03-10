@@ -6,6 +6,7 @@ import { ApolloLink } from 'apollo-link';
 import { withClientState } from 'apollo-link-state';
 import { WebSocketLink } from 'apollo-link-ws';
 import { InMemoryCache } from 'apollo-cache-inmemory';
+import { ReduxCache } from 'apollo-cache-redux';
 import { LoggingLink } from 'apollo-logger';
 import { ApolloProvider } from 'react-apollo';
 import { Provider } from 'react-redux';
@@ -36,8 +37,33 @@ const fetch = createApolloFetch({
 
 log.info(`Connecting to GraphQL backend at: ${uri}`);
 
-const cache = new InMemoryCache();
+const history = createHistory();
 
+const logPageView = location => {
+  ReactGA.set({ page: location.pathname });
+  ReactGA.pageview(location.pathname);
+};
+
+// Initialize Google Analytics and send events on each location change
+ReactGA.initialize(settings.analytics.ga.trackingId);
+logPageView(window.location);
+
+history.listen(location => logPageView(location));
+
+let store;
+if (module.hot && module.hot.data && module.hot.data.store) {
+  // console.log("Restoring Redux store:", JSON.stringify(module.hot.data.store.getState()));
+  store = module.hot.data.store;
+  store.replaceReducer(storeReducer);
+} else {
+  store = createReduxStore({}, routerMiddleware(history));
+}
+
+// const cache = new InMemoryCache();
+const cache = new ReduxCache({ store });
+window.store = store
+import { isEqual } from 'lodash'
+window.isEqual = isEqual
 for (const middleware of modules.middlewares) {
   fetch.batchUse(({ requests, options }, next) => {
     options.credentials = 'same-origin';
@@ -124,27 +150,7 @@ if (window.__APOLLO_STATE__) {
   cache.restore(window.__APOLLO_STATE__);
 }
 
-const history = createHistory();
-
-const logPageView = location => {
-  ReactGA.set({ page: location.pathname });
-  ReactGA.pageview(location.pathname);
-};
-
-// Initialize Google Analytics and send events on each location change
-ReactGA.initialize(settings.analytics.ga.trackingId);
-logPageView(window.location);
-
-history.listen(location => logPageView(location));
-
-let store;
-if (module.hot && module.hot.data && module.hot.data.store) {
-  // console.log("Restoring Redux store:", JSON.stringify(module.hot.data.store.getState()));
-  store = module.hot.data.store;
-  store.replaceReducer(storeReducer);
-} else {
-  store = createReduxStore({}, client, routerMiddleware(history));
-}
+window.client = client
 
 if (module.hot) {
   module.hot.dispose(data => {

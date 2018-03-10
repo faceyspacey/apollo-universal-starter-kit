@@ -53,6 +53,7 @@
   "license": "MIT",
   "dependencies": {
     "apollo-cache-inmemory": "^1.1.4",
+    "apollo-cache-redux": "^0.1.0",
     "apollo-client": "^2.1.0",
     "apollo-engine": "^0.7.0",
     "apollo-fetch": "^0.7.0",

@@ -6,6 +6,7 @@ import { withClientState } from 'apollo-link-state';
 import { SchemaLink } from 'apollo-link-schema';
 import { BatchHttpLink } from 'apollo-link-batch-http';
 import { InMemoryCache } from 'apollo-cache-inmemory';
+import { ReduxCache } from 'apollo-cache-redux';
 import { ApolloProvider, getDataFromTree } from 'react-apollo';
 import { Provider } from 'react-redux';
 import { StaticRouter } from 'react-router';
@@ -47,7 +48,11 @@ const renderServerSide = async (req, res) => {
     next();
   });
 
-  const cache = new InMemoryCache();
+  let initialState = {};
+  const store = createReduxStore(initialState);
+  
+  // const cache = new InMemoryCache();
+  const cache = new ReduxCache({ store });
   const isLocalhost = /localhost/.test(__BACKEND_URL__);
 
   const link = isLocalhost
@@ -60,8 +65,7 @@ const renderServerSide = async (req, res) => {
     cache
   });
 
-  let initialState = {};
-  const store = createReduxStore(initialState, client);
+
 
   const context = {};
   const App = () =>

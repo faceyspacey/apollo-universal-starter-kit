@@ -9,6 +9,10 @@ import POSTS_QUERY from '../graphql/PostsQuery.graphql';
 import POSTS_SUBSCRIPTION from '../graphql/PostsSubscription.graphql';
 import DELETE_POST from '../graphql/DeletePost.graphql';
 
+if (typeof window !== 'undefined') {
+  window.postsQuery = POSTS_QUERY
+}
+
 export function AddPost(prev, node) {
   // ignore if duplicate
   if (prev.posts.edges.some(post => node.id === post.cursor)) {
@@ -117,7 +121,7 @@ class Post extends React.Component {
   }
 }
 
-export default compose(
+const CompA = compose(
   graphql(POSTS_QUERY, {
     options: () => {
       return {
@@ -175,3 +179,68 @@ export default compose(
     })
   })
 )(Post);
+
+const CompB = compose(
+  graphql(POSTS_QUERY, {
+    options: () => {
+      return {
+        variables: { limit: 10, after: 0 }
+      };
+    },
+    props: ({ data }) => {
+      const { loading, error, posts, fetchMore, subscribeToMore } = data;
+      const loadMoreRows = () => {
+        return fetchMore({
+          variables: {
+            after: posts.pageInfo.endCursor
+          },
+          updateQuery: (previousResult, { fetchMoreResult }) => {
+            const totalCount = fetchMoreResult.posts.totalCount;
+            const newEdges = fetchMoreResult.posts.edges;
+            const pageInfo = fetchMoreResult.posts.pageInfo;
+
+            return {
+              // By returning `cursor` here, we update the `fetchMore` function
+              // to the new cursor.
+              posts: {
+                totalCount,
+                edges: [...previousResult.posts.edges, ...newEdges],
+                pageInfo,
+                __typename: 'Posts'
+              }
+            };
+          }
+        });
+      };
+      if (error) throw new Error(error);
+      return { loading, posts, subscribeToMore, loadMoreRows };
+    }
+  }),
+  graphql(DELETE_POST, {
+    props: ({ mutate }) => ({
+      deletePost: id => {
+        mutate({
+          variables: { id },
+          optimisticResponse: {
+            __typename: 'Mutation',
+            deletePost: {
+              id: id,
+              __typename: 'Post'
+            }
+          },
+          updateQueries: {
+            posts: (prev, { mutationResult: { data: { deletePost } } }) => {
+              return DeletePost(prev, deletePost.id);
+            }
+          }
+        });
+      }
+    })
+  })
+)(Post);
+
+export default props =>
+  <div>
+    <CompA {...props} />
+    <CompB {...props} />
+  </div>

@@ -77,6 +77,14 @@ export default class PostList extends React.PureComponent {
           )
         }
       ];
+
+      console.log('RENDER')
+
+      if (typeof window !== 'undefined') {
+        window.posts = window.posts || []
+        window.posts.push(posts)
+      }
+      
       return (
         <PageLayout>
           {this.renderMetaData()}
